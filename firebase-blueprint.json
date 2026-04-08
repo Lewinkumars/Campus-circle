@@ -1,0 +1,183 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "A student user of the platform",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "name": { "type": "string" },
+        "year": { "type": "string", "enum": ["1st Year", "2nd Year", "3rd Year", "4th Year", "Alumni", "Other"] },
+        "branch": { "type": "string" },
+        "trustScore": { "type": "number", "description": "Number of successful past trades" },
+        "totalSavings": { "type": "number", "description": "Total money saved by buying second-hand" },
+        "phoneNumber": { "type": "string", "description": "User's contact number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "name", "trustScore"]
+    },
+    "Listing": {
+      "title": "Listing",
+      "description": "An item listed for sale",
+      "type": "object",
+      "properties": {
+        "sellerId": { "type": "string" },
+        "sellerName": { "type": "string" },
+        "sellerYear": { "type": "string" },
+        "sellerBranch": { "type": "string" },
+        "sellerTrustScore": { "type": "number" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "category": { "type": "string", "enum": ["books", "lab coat", "electronics", "stationery", "bundle", "question papers", "exam notes", "other"] },
+        "price": { "type": "number" },
+        "originalPrice": { "type": "number" },
+        "condition": { "type": "string", "enum": ["New", "Good", "Fair"] },
+        "quantity": { "type": "number", "description": "Number of items available" },
+        "imageUrl": { "type": "string" },
+        "status": { "type": "string", "enum": ["available", "sold"] },
+        "interestCount": { "type": "number" },
+        "isBundle": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["sellerId", "sellerName", "title", "category", "price", "condition", "status", "createdAt"]
+    },
+    "Interest": {
+      "title": "Interest",
+      "description": "A buyer expressing interest in a listing",
+      "type": "object",
+      "properties": {
+        "listingId": { "type": "string" },
+        "listingTitle": { "type": "string" },
+        "buyerId": { "type": "string" },
+        "buyerName": { "type": "string" },
+        "buyerYear": { "type": "string" },
+        "buyerBranch": { "type": "string" },
+        "sellerId": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "accepted", "rejected"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["listingId", "listingTitle", "buyerId", "buyerName", "sellerId", "status", "createdAt"]
+    },
+    "Chat": {
+      "title": "Chat",
+      "description": "A chat conversation between a buyer and seller",
+      "type": "object",
+      "properties": {
+        "listingId": { "type": "string" },
+        "listingTitle": { "type": "string" },
+        "buyerId": { "type": "string" },
+        "buyerName": { "type": "string" },
+        "sellerId": { "type": "string" },
+        "sellerName": { "type": "string" },
+        "participantIds": { "type": "array", "items": { "type": "string" } },
+        "lastMessage": { "type": "string" },
+        "lastMessageTime": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["listingId", "buyerId", "sellerId", "participantIds", "createdAt"]
+    },
+    "Message": {
+      "title": "Message",
+      "description": "A single message in a chat",
+      "type": "object",
+      "properties": {
+        "senderId": { "type": "string" },
+        "text": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["senderId", "text", "createdAt"]
+    },
+    "Waitlist": {
+      "title": "Waitlist",
+      "description": "Users waiting for an item to become available",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "category": { "type": "string" },
+        "listingTitle": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "category", "createdAt"]
+    },
+    "Notification": {
+      "title": "Notification",
+      "description": "Alerts for users when items become available",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "message": { "type": "string" },
+        "listingId": { "type": "string" },
+        "read": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "message", "read", "createdAt"]
+    },
+    "WishlistItem": {
+      "title": "WishlistItem",
+      "description": "An item saved by a user for later",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "listingId": { "type": "string" },
+        "listingTitle": { "type": "string" },
+        "listingPrice": { "type": "number" },
+        "listingImageUrl": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "listingId", "createdAt"]
+    },
+    "Rating": {
+      "title": "Rating",
+      "description": "A user's rating and review for a product",
+      "type": "object",
+      "properties": {
+        "listingId": { "type": "string" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "rating": { "type": "number", "minimum": 1, "maximum": 5 },
+        "comment": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["listingId", "userId", "userName", "rating", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "User profiles"
+    },
+    "/listings/{listingId}": {
+      "schema": { "$ref": "#/entities/Listing" },
+      "description": "Items for sale"
+    },
+    "/interests/{interestId}": {
+      "schema": { "$ref": "#/entities/Interest" },
+      "description": "Expressions of interest from buyers"
+    },
+    "/chats/{chatId}": {
+      "schema": { "$ref": "#/entities/Chat" },
+      "description": "Chat conversations"
+    },
+    "/chats/{chatId}/messages/{messageId}": {
+      "schema": { "$ref": "#/entities/Message" },
+      "description": "Messages within a chat"
+    },
+    "/waitlist/{waitlistId}": {
+      "schema": { "$ref": "#/entities/Waitlist" },
+      "description": "Waitlist requests"
+    },
+    "/notifications/{notificationId}": {
+      "schema": { "$ref": "#/entities/Notification" },
+      "description": "General notifications"
+    },
+    "/wishlist/{wishlistId}": {
+      "schema": { "$ref": "#/entities/WishlistItem" },
+      "description": "User wishlists"
+    },
+    "/ratings/{ratingId}": {
+      "schema": { "$ref": "#/entities/Rating" },
+      "description": "Product ratings and reviews"
+    }
+  }
+}

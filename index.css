@@ -1,0 +1,17 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #F97316;
+  --color-primary-hover: #EA580C;
+  --color-primary-light: #FFEDD5;
+  --color-background-theme: #FFF7ED;
+  --color-border-theme: #FED7AA;
+  --color-text-primary: #1F2937;
+  --color-text-secondary: #6B7280;
+}
+
+@layer base {
+  body {
+    @apply bg-background-theme text-text-primary transition-all duration-200 ease-in-out;
+  }
+}

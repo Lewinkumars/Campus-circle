@@ -1,0 +1,177 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: {userId}
+    // Fields:
+    //   - uid: string (required, immutable) - User's unique ID
+    //   - email: string (required, immutable) - User's email
+    //   - name: string (required) - User's display name
+    //   - year: string (optional) - Student's year
+    //   - branch: string (optional) - Student's branch
+    //   - trustScore: number (required) - Reputation score
+    //   - totalSavings: number (optional) - Money saved
+    //   - phoneNumber: string (optional) - Contact info
+    //   - role: string (optional) - 'admin' or 'user'
+    //   - createdAt: string (required, immutable) - ISO date string
+    //
+    // Collection: listings
+    // Document ID: {listingId}
+    // Fields:
+    //   - sellerId: string (required, immutable)
+    //   - sellerName: string (required)
+    //   - title: string (required)
+    //   - category: string (required)
+    //   - price: number (required)
+    //   - condition: string (required)
+    //   - status: string (required)
+    //   - createdAt: string (required, immutable)
+    //
+    // [Other collections follow similar patterns]
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+          (request.auth.token.email == "lishanthcg@gmail.com" && request.auth.token.email_verified == true));
+    }
+    
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+    
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function isValidDateString(dateStr) {
+      return dateStr is string && dateStr.matches("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}.*Z?$");
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+    function isValidUser(data) {
+      return data.uid is string && data.uid.size() > 0 &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.email is string && isValidEmail(data.email) &&
+             data.trustScore is number && data.trustScore >= 0 &&
+             (!('role' in data) || data.role in ['admin', 'user']) &&
+             isValidDateString(data.createdAt);
+    }
+
+    function isValidListing(data) {
+      return data.sellerId is string && data.sellerId.size() > 0 &&
+             data.title is string && data.title.size() > 0 && data.title.size() < 200 &&
+             data.category in ['books', 'lab coat', 'electronics', 'stationery', 'bundle', 'question papers', 'exam notes', 'other'] &&
+             data.price is number && data.price >= 0 &&
+             data.condition in ['New', 'Good', 'Fair'] &&
+             data.status in ['available', 'sold'] &&
+             isValidDateString(data.createdAt);
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      
+      allow create: if isOwner(userId) && 
+                      isValidUser(request.resource.data) && 
+                      request.resource.data.trustScore == 0 &&
+                      (!('role' in request.resource.data) || request.resource.data.role == 'user');
+                      
+      allow update: if isAuthenticated() && (
+                      (isOwner(userId) && 
+                       isValidUser(request.resource.data) && 
+                       request.resource.data.uid == resource.data.uid &&
+                       request.resource.data.email == resource.data.email &&
+                       request.resource.data.createdAt == resource.data.createdAt &&
+                       request.resource.data.role == resource.data.role &&
+                       request.resource.data.trustScore == resource.data.trustScore) ||
+                      isAdmin()
+                    );
+    }
+
+    match /listings/{listingId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && isValidListing(request.resource.data) && request.resource.data.sellerId == request.auth.uid;
+      allow update: if isAuthenticated() && (
+                      (resource.data.sellerId == request.auth.uid && isValidListing(request.resource.data) && request.resource.data.sellerId == resource.data.sellerId) ||
+                      isAdmin() ||
+                      (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['interestCount']) &&
+                       request.resource.data.interestCount == resource.data.interestCount + 1)
+                    );
+      allow delete: if isAuthenticated() && (resource.data.sellerId == request.auth.uid || isAdmin());
+    }
+
+    match /interests/{interestId} {
+      allow read: if isAuthenticated() && (resource.data.buyerId == request.auth.uid || resource.data.sellerId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && request.resource.data.buyerId == request.auth.uid && request.resource.data.status == 'pending';
+      allow update: if isAuthenticated() && (
+                      (resource.data.sellerId == request.auth.uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])) ||
+                      isAdmin()
+                    );
+      allow delete: if isAuthenticated() && (resource.data.buyerId == request.auth.uid || isAdmin());
+    }
+
+    match /chats/{chatId} {
+      allow read: if isAuthenticated() && (request.auth.uid in resource.data.participantIds || isAdmin());
+      allow create: if isAuthenticated() && request.auth.uid in request.resource.data.participantIds;
+      allow update: if isAuthenticated() && (request.auth.uid in resource.data.participantIds || isAdmin());
+      
+      match /messages/{messageId} {
+        allow read: if isAuthenticated() && (request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participantIds || isAdmin());
+        allow create: if isAuthenticated() && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participantIds;
+      }
+    }
+
+    match /waitlist/{waitlistId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow delete: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+    }
+
+    match /notifications/{notificationId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow delete: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+    }
+
+    match /wishlist/{wishlistId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow delete: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+    }
+
+    match /ratings/{ratingId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow delete: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+    }
+  }
+}
